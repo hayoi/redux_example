@@ -3,6 +3,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:redux_example/data/model/photo_data.dart';
 import 'package:redux_example/data/model/choice_data.dart';
+import 'package:redux_example/features/settings/settings_option.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:redux_example/trans/translations.dart';
 import 'package:flutter_redux/flutter_redux.dart';
@@ -232,6 +233,12 @@ class _HomeViewContentState extends State<HomeViewContent> {
           }
         },
       ),
+      IconButton(
+        icon: Icon(choices[1].icon),
+        onPressed: () async {
+            Navigator.of(context).pushNamed("/settings");
+        },
+      ),
     ];
   }
 
@@ -244,6 +251,7 @@ class _HomeViewContentState extends State<HomeViewContent> {
 
 const List<Choice> choices = const <Choice>[
   const Choice(title: 'Search', icon: Icons.search),
+  const Choice(title: 'Settings', icon: Icons.settings),
 ];
 
 class _PhotoListItem extends ListTile {
