@@ -1,4 +1,3 @@
-import 'package:redux_example/data/model/student_data.dart';
 import 'dart:async';
 import 'dart:io';
 import 'package:path/path.dart';
@@ -29,13 +28,10 @@ class DatabaseClient {
 
   Future<Database> create() async {
     Directory path = await getApplicationDocumentsDirectory();
-    String dbPath = join(path.path, "charging_db.db");
+    String dbPath = join(path.path, "redux_example_db.db");
 
     return openDatabase(dbPath, version: 9, onUpgrade: (d, o, n) {
-      d..delete("student");
-      Student.createTable(d);
     }, onOpen: (d) {
-      Student.createTable(d);
     });
   }
 }

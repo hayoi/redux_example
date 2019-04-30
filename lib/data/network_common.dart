@@ -16,29 +16,24 @@ class NetworkCommon {
   dynamic decodeResp(d) {
     // ignore: cast_to_non_type
     var response = d as Response;
-    final String jsonBody = response.data;
+    final dynamic jsonBody = response.data;
     final statusCode = response.statusCode;
 
     if (statusCode < 200 || statusCode >= 300 || jsonBody == null) {
       throw new Exception("statusCode: $statusCode");
     }
 
-    final contactsContainer = _decoder.convert(jsonBody);
-    final String msg = contactsContainer['msg'];
-    final int code = contactsContainer['code'];
-    final results = contactsContainer['data'];
-    /// decode your data from remote server here.
-
-    if (code != 0) {
-      throw new Exception("statusCode:$code, msg: $msg");
+    if (jsonBody is String) {
+      return _decoder.convert(jsonBody);
+    } else {
+      return jsonBody;
     }
-    return results;
   }
 
   Dio get dio {
     Dio dio = new Dio();
     // Set default configs
-    dio.options.baseUrl = 'http://192.168.1.186:5000/';
+    dio.options.baseUrl = 'https://unsplash.com/';
     dio.options.connectTimeout = 5000; //5s
     dio.options.receiveTimeout = 3000;
     dio.interceptors
@@ -46,7 +41,10 @@ class NetworkCommon {
       /// Do something before request is sent
       /// set the token
       SharedPreferences prefs = await SharedPreferences.getInstance();
-      options.headers["Authorization"] = "Bearer ${prefs.getString('token')}";
+      String token = prefs.getString('token');
+      if (token != null) {
+        options.headers["Authorization"] = "Bearer " + token;
+      }
 
       print("Pre request:${options.method},${options.baseUrl}${options.path}");
       print("Pre request:${options.headers.toString()}");
@@ -99,7 +97,7 @@ class NetworkCommon {
             ro.headers["Authorization"] = "Bearer ${prefs.getString('token')}";
             return ro;
           } else {
-            throw Exception("Exception in Re-login");
+            throw Exception("Exception in re-login");
           }
         });
       }

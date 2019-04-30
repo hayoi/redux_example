@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:redux_example/data/model/student_data.dart';
+import 'package:redux_example/data/model/photo_data.dart';
 import 'package:redux_example/data/model/choice_data.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:redux_example/trans/translations.dart';
@@ -10,7 +10,6 @@ import 'package:redux_example/redux/app/app_state.dart';
 import 'package:redux_example/features/home/home_view_model.dart';
 import 'package:redux_example/redux/action_report.dart';
 import 'package:redux_example/utils/progress_dialog.dart';
-import 'package:redux_example/features/widget/swipe_list_item.dart';
 
 class HomeView extends StatelessWidget {
   HomeView({Key key}) : super(key: key);
@@ -37,17 +36,17 @@ class HomeViewContent extends StatefulWidget {
 }
 
 class _HomeViewContentState extends State<HomeViewContent> {
+  final _SearchDemoSearchDelegate _delegate = _SearchDemoSearchDelegate();
   final GlobalKey<RefreshIndicatorState> _refreshIndicatorKey = GlobalKey<RefreshIndicatorState>();
   final TrackingScrollController _scrollController = TrackingScrollController();
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
-  var dpr;
 
 
   @override
   void initState() {
     super.initState();
-    if (this.widget.viewModel.students.length == 0) {
-      this.widget.viewModel.getStudents(true);
+    if (this.widget.viewModel.photos.length == 0) {
+      this.widget.viewModel.getPhotos(true);
     }
   }
   
@@ -57,20 +56,6 @@ class _HomeViewContentState extends State<HomeViewContent> {
   void didUpdateWidget(HomeViewContent oldWidget) {
     super.didUpdateWidget(oldWidget);
     Future.delayed(Duration.zero, () {
-
-      if (this.widget.viewModel.deleteStudentReport?.status ==
-          ActionStatus.running) {
-        if (dpr == null) {
-          dpr = new ProgressDialog(context);
-        }
-        dpr.setMessage("Deleting...");
-        dpr.show();
-      } else {
-        if (dpr != null && dpr.isShowing()) {
-          dpr.hide();
-          dpr = null;
-        }
-      }
     });
   }
 
@@ -91,7 +76,7 @@ class _HomeViewContentState extends State<HomeViewContent> {
           child: ListView.builder(
             controller: _scrollController,
             physics: const AlwaysScrollableScrollPhysics(),
-            itemCount: this.widget.viewModel.students.length + 1,
+            itemCount: this.widget.viewModel.photos.length + 1,
             itemBuilder: (_, int index) => _createItem(context, index),
           ),
         ));
@@ -112,8 +97,8 @@ class _HomeViewContentState extends State<HomeViewContent> {
       if (_scrollController.mostRecentlyUpdatedPosition.maxScrollExtent > _scrollController.offset &&
           _scrollController.mostRecentlyUpdatedPosition.maxScrollExtent - _scrollController.offset <= 50) {
         // load more
-        if (this.widget.viewModel.getStudentsReport?.status == ActionStatus.complete ||
-            this.widget.viewModel.getStudentsReport?.status == ActionStatus.error) {
+        if (this.widget.viewModel.getPhotosReport?.status == ActionStatus.complete ||
+            this.widget.viewModel.getPhotosReport?.status == ActionStatus.error) {
           // have next page
           _loadMoreData();
           setState(() {});
@@ -125,37 +110,33 @@ class _HomeViewContentState extends State<HomeViewContent> {
   }
 
   Future<Null> _loadMoreData() {
-    widget.viewModel.getStudents(false);
+    widget.viewModel.getPhotos(false);
     return null;
   }
 
   Future<Null> _handleRefresh() async {
     _refreshIndicatorKey.currentState.show();
-    widget.viewModel.getStudents(true);
+    widget.viewModel.getPhotos(true);
     return null;
   }
 
   _createItem(BuildContext context, int index) {
-    if (index < this.widget.viewModel.students?.length) {
-      return SwipeListItem<Student>(
-          item: this.widget.viewModel.students[index],
-          onArchive: _handleArchive,
-          onDelete: _handleDelete,
-          child: Container(
-              child: _StudentListItem(
-                student: this.widget.viewModel.students[index],
+    if (index < this.widget.viewModel.photos?.length) {
+      return Container(
+              child: _PhotoListItem(
+                photo: this.widget.viewModel.photos[index],
                 onTap: () {
                   //Navigator.push(
                   //  context,
                   //  MaterialPageRoute(
                   //    builder: (context) =>
-                  //        ViewStudent(student: this.widget.viewModel.students[index]),
+                  //        ViewPhoto(photo: this.widget.viewModel.photos[index]),
                   //  ),
                   //);
                 },
               ),
               decoration: BoxDecoration(
-                  border: Border(bottom: BorderSide(color: Theme.of(context).dividerColor)))));
+                  border: Border(bottom: BorderSide(color: Theme.of(context).dividerColor))));
     }
 
     return Container(
@@ -165,34 +146,9 @@ class _HomeViewContentState extends State<HomeViewContent> {
       ),
     );
   }
-
-  void _handleArchive(Student item) {}
-
-  void _handleDelete(Student item) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) => AlertDialog(
-            title: Text("DELETE"),
-            content: Text('Do you want to delete this item'),
-            actions: <Widget>[
-              FlatButton(
-                  child: const Text('Cancel'),
-                  onPressed: () {
-                    Navigator.pop(context);
-                  }),
-              FlatButton(
-                  child: const Text('Delete'),
-                  onPressed: () {
-                    this.widget.viewModel.deleteStudent(item);
-                    Navigator.pop(context);
-                  })
-            ],
-          ),
-    );
-  }
   
   Widget _getLoadMoreWidget() {
-    if (this.widget.viewModel.getStudentsReport?.status == ActionStatus.running) {
+    if (this.widget.viewModel.getPhotosReport?.status == ActionStatus.running) {
       return Padding(
           padding: const EdgeInsets.only(left: 16.0, right: 16.0),
           child: CircularProgressIndicator());
@@ -264,8 +220,16 @@ class _HomeViewContentState extends State<HomeViewContent> {
     return <Widget>[
       IconButton(
         icon: Icon(choices[0].icon),
-        onPressed: () {
-          _select(choices[0]);
+        onPressed: () async {
+          final int selected = await showSearch<int>(
+            context: context,
+            delegate: _delegate,
+          );
+          if (selected != null) {
+            setState(() {
+              showError("you select $selected");
+            });
+          }
         },
       ),
     ];
@@ -279,14 +243,175 @@ class _HomeViewContentState extends State<HomeViewContent> {
 }
 
 const List<Choice> choices = const <Choice>[
-  const Choice(title: 'Add', icon: Icons.add),
+  const Choice(title: 'Search', icon: Icons.search),
 ];
 
-class _StudentListItem extends ListTile {
-  _StudentListItem({Student student, GestureTapCallback onTap})
+class _PhotoListItem extends ListTile {
+  _PhotoListItem({Photo photo, GestureTapCallback onTap})
       : super(
-            title: Text("Title"),
-            subtitle: Text("Subtitle"),
-            leading: CircleAvatar(child: Text("T")),
-            onTap: onTap);
+      title: Text(photo.id),
+      subtitle: Text(photo.views==null?"0":photo.views.toString()),
+      leading: CircleAvatar(child: Image.network(photo.urls.thumb)),
+      onTap: onTap);
+}
+
+class _SearchDemoSearchDelegate extends SearchDelegate<int> {
+  final List<int> _data =
+      List<int>.generate(100001, (int i) => i).reversed.toList();
+  final List<int> _history = <int>[42607, 85604, 66374, 44, 174];
+
+  @override
+  Widget buildLeading(BuildContext context) {
+    return IconButton(
+      tooltip: 'Back',
+      icon: AnimatedIcon(
+        icon: AnimatedIcons.menu_arrow,
+        progress: transitionAnimation,
+      ),
+      onPressed: () {
+        close(context, null);
+      },
+    );
+  }
+
+  @override
+  Widget buildSuggestions(BuildContext context) {
+    final Iterable<int> suggestions = query.isEmpty
+        ? _history
+        : _data.where((int i) => '$i'.startsWith(query));
+
+    return _SuggestionList(
+      query: query,
+      suggestions: suggestions.map((int i) => '$i').toList(),
+      onSelected: (String suggestion) {
+        query = suggestion;
+        showResults(context);
+      },
+    );
+  }
+
+  @override
+  Widget buildResults(BuildContext context) {
+    final int searched = int.tryParse(query);
+    if (searched == null || !_data.contains(searched)) {
+      return Center(
+        child: Text(
+          '"$query"\n is not a valid integer between 0 and 100,000.\nTry again.',
+          textAlign: TextAlign.center,
+        ),
+      );
+    }
+
+    return ListView(
+      children: <Widget>[
+        _ResultCard(
+          title: 'This integer',
+          integer: searched,
+          searchDelegate: this,
+        ),
+        _ResultCard(
+          title: 'Next integer',
+          integer: searched + 1,
+          searchDelegate: this,
+        ),
+        _ResultCard(
+          title: 'Previous integer',
+          integer: searched - 1,
+          searchDelegate: this,
+        ),
+      ],
+    );
+  }
+
+  @override
+  List<Widget> buildActions(BuildContext context) {
+    return <Widget>[
+      query.isEmpty
+          ? IconButton(
+              tooltip: 'Voice Search',
+              icon: const Icon(Icons.mic),
+              onPressed: () {
+                query = 'TODO: implement voice input';
+              },
+            )
+          : IconButton(
+              tooltip: 'Clear',
+              icon: const Icon(Icons.clear),
+              onPressed: () {
+                query = '';
+                showSuggestions(context);
+              },
+            )
+    ];
+  }
+}
+
+class _ResultCard extends StatelessWidget {
+  const _ResultCard({this.integer, this.title, this.searchDelegate});
+
+  final int integer;
+  final String title;
+  final SearchDelegate<int> searchDelegate;
+
+  @override
+  Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+    return GestureDetector(
+      onTap: () {
+        searchDelegate.close(context, integer);
+      },
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Column(
+            children: <Widget>[
+              Text(title),
+              Text(
+                '$integer',
+                style: theme.textTheme.headline.copyWith(fontSize: 72.0),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SuggestionList extends StatelessWidget {
+  const _SuggestionList({this.suggestions, this.query, this.onSelected});
+
+  final List<String> suggestions;
+  final String query;
+  final ValueChanged<String> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+    return ListView.builder(
+      itemCount: suggestions.length,
+      itemBuilder: (BuildContext context, int i) {
+        final String suggestion = suggestions[i];
+        return ListTile(
+          leading: query.isEmpty ? const Icon(Icons.history) : const Icon(null),
+          title: RichText(
+            text: TextSpan(
+              text: suggestion.substring(0, query.length),
+              style:
+                  theme.textTheme.subhead.copyWith(fontWeight: FontWeight.bold),
+              children: <TextSpan>[
+                TextSpan(
+                  text: suggestion.substring(query.length),
+                  style: theme.textTheme.subhead,
+                ),
+              ],
+            ),
+          ),
+          onTap: () {
+            onSelected(suggestion);
+          },
+        );
+      },
+    );
+  }
 }
